@@ -194,11 +194,28 @@ kbd {
   background: var(--accent-hover);
 }
 
-/* ---- Botón de tema ---- */
-#theme-btn {
+/* ---- Skin neon: tablero negro sea cual sea el tema ---- */
+:root[data-skin="neon"] {
+  --grid: #101820;
+}
+
+[data-skin="neon"] #board,
+[data-skin="neon"] #next-canvas {
+  background: #000;
+  border-color: #1f2a38;
+}
+
+/* ---- Barra superior: skin + tema ---- */
+.toolbar {
   position: fixed;
   top: 16px;
   right: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+#skin-select,
+#theme-btn {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -209,6 +226,7 @@ kbd {
   cursor: pointer;
 }
 
+#skin-select:hover,
 #theme-btn:hover {
   border-color: var(--accent);
 }
