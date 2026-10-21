@@ -85,10 +85,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write       # Push de la rama
-      pull-requests: write  # Crear / actualizar la PR
-      issues: write         # Comentar si no se implementa
-      id-token: write       # Requerido por claude-code-action
+      contents: write  # Push de la rama
+      issues: write    # Comentar en el issue el resultado
+      id-token: write  # Requerido por claude-code-action
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -100,7 +99,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      # Rama determinista por issue: si el issue se edita, se reutiliza la misma rama/PR.
+      # Rama determinista por issue: si el issue se edita, se reutiliza la misma rama.
       - name: Preparar rama de trabajo
         run: |
           set -euo pipefail
@@ -139,12 +138,12 @@ jobs:
           claude_args: |
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue view:*),Bash(node --check:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*)"
 
-      - name: Commit, push y Pull Request
+      - name: Commit, push y aviso en el issue
         run: |
           set -euo pipefail
           git add -A
 
-          TITLE="$(head -n 1 .claude-output/pr-title.txt 2>/dev/null || true)"
+          TITLE="$(head -n 1 .claude-output/commit-title.txt 2>/dev/null || true)"
 
           if ! git diff --cached --quiet; then
             # Barrera de seguridad: nunca publicar cambios en workflows/scripts/prompts.
@@ -161,8 +160,8 @@ jobs:
             echo "Claude no hizo cambios de código nuevos en esta ejecución."
           fi
 
-          # La PR se decide por el estado de la rama remota, no por si hubo commit en esta
-          # ejecución: así un re-run (p. ej. tras un fallo al crear la PR) la crea igualmente.
+          # Se decide por el estado de la rama remota, no por si hubo commit en esta
+          # ejecución: así un re-run sigue avisando en el issue aunque no haya cambios nuevos.
           # Se usa la API compare porque el clon es superficial (fetch-depth: 1).
           AHEAD=0
           if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
@@ -170,21 +169,23 @@ jobs:
           fi
 
           if [ "$AHEAD" -eq 0 ]; then
-            echo "La rama no tiene cambios respecto a ${BASE_BRANCH}; no se crea PR."
+            echo "La rama no tiene cambios respecto a ${BASE_BRANCH}."
             if [ -s .claude-output/skip-reason.md ]; then
               bash .github/scripts/upsert-issue-comment.sh "$ISSUE_NUMBER" '<!-- claude-implement -->' .claude-output/skip-reason.md
             fi
             exit 0
           fi
 
-          [ -n "$TITLE" ] || TITLE="$(git log -1 --format=%s)"
+          # No se crea PR: se deja el código en la rama y se avisa en el issue con el
+          # resumen de Claude y los enlaces para revisar los cambios o abrir la PR a mano.
+          SERVER="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          {
+            echo "## 🌿 Cambios implementados en la rama \`${BRANCH}\`"
+            echo
+            echo "- [Ver la rama](${SERVER}/tree/${BRANCH})"
+            echo "- [Comparar con \`${BASE_BRANCH}\` y abrir PR](${SERVER}/compare/${BASE_BRANCH}...${BRANCH}?expand=1)"
+            echo
+            cat .claude-output/summary.md 2>/dev/null || true
+          } > .claude-output/branch-comment.md
 
-          { cat .claude-output/pr-body.md 2>/dev/null || true; printf '\n\n---\n\nCloses #%s\n' "$ISSUE_NUMBER"; } > .claude-output/pr-full-body.md
-
-          PR_NUMBER="$(gh pr list --head "$BRANCH" --base "$BASE_BRANCH" --state open --json number --jq '.[0].number // empty')"
-          if [ -n "$PR_NUMBER" ]; then
-            gh pr edit "$PR_NUMBER" --title "$TITLE" --body-file .claude-output/pr-full-body.md
-            echo "PR #${PR_NUMBER} actualizada."
-          else
-            gh pr create --base "$BASE_BRANCH" --head "$BRANCH" --title "$TITLE" --body-file .claude-output/pr-full-body.md
-          fi
+          bash .github/scripts/upsert-issue-comment.sh "$ISSUE_NUMBER" '<!-- claude-implement -->' .claude-output/branch-comment.md
