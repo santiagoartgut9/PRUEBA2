@@ -4,16 +4,13 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
-const COLORS = [
-  null,
-  '#4dd0e1', // I - cyan
-  '#ffd54f', // O - yellow
-  '#ba68c8', // T - purple
-  '#81c784', // S - green
-  '#e57373', // Z - red
-  '#7986cb', // J - indigo
-  '#ffb74d', // L - orange
-];
+// Colores pastel: matices repartidos uniformemente con un desfase al azar por partida
+const HUE_OFFSET = Math.random() * 360;
+const COLORS = [null];
+for (let i = 0; i < 7; i++) {
+  const hue = Math.round((HUE_OFFSET + i * (360 / 7)) % 360);
+  COLORS.push(`hsl(${hue}, 70%, 82%)`);
+}
 
 const PIECES = [
   null,
