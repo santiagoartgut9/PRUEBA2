@@ -31,6 +31,14 @@
           <canvas id="next-canvas" width="120" height="120"></canvas>
         </div>
 
+        <div class="panel-section">
+          <label class="label" for="skin-select">SKIN</label>
+          <!-- Las opciones se generan desde SKINS (skins.js) -->
+          <select id="skin-select" class="skin-select">
+            <option value="retro">Retro</option>
+          </select>
+        </div>
+
         <div class="panel-section controls">
           <span class="label">CONTROLS</span>
           <ul>
@@ -53,6 +61,8 @@
     </div>
   </div>
 
+  <!-- skins.js debe cargarse antes que game.js: define SKINS y DEFAULT_SKIN -->
+  <script src="skins.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

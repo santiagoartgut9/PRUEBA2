@@ -4,16 +4,8 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
-const COLORS = [
-  null,
-  '#4dd0e1', // I - cyan
-  '#ffd54f', // O - yellow
-  '#ba68c8', // T - purple
-  '#81c784', // S - green
-  '#e57373', // Z - red
-  '#7986cb', // J - indigo
-  '#ffb74d', // L - orange
-];
+// Los colores y la forma de dibujar cada bloque los define la skin activa (skins.js).
+const SKIN_STORAGE_KEY = 'tetris.skin';
 
 const PIECES = [
   null,
@@ -39,7 +31,9 @@ const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
+const skinSelect = document.getElementById('skin-select');
 
+let activeSkin = SKINS[DEFAULT_SKIN];
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
 function createBoard() {
@@ -158,18 +152,18 @@ function updateHUD() {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
-  context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
-  context.globalAlpha = 1;
+  // Delegación en la estrategia de la skin activa
+  activeSkin.drawBlock(context, x, y, activeSkin.colors[colorIndex], size, alpha);
+}
+
+// Pinta el fondo del canvas con el color de la skin (no depende solo del CSS)
+function fillBackground(context, target) {
+  context.fillStyle = activeSkin.boardBg;
+  context.fillRect(0, 0, target.width, target.height);
 }
 
 function drawGrid() {
-  ctx.strokeStyle = '#22222e';
+  ctx.strokeStyle = activeSkin.gridColor;
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -187,6 +181,7 @@ function drawGrid() {
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  fillBackground(ctx, canvas);
   drawGrid();
 
   // board
@@ -210,12 +205,60 @@ function draw() {
 function drawNext() {
   const NB = 30;
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+  fillBackground(nextCtx, nextCanvas);
   const shape = next.shape;
   const offX = Math.floor((4 - shape[0].length) / 2);
   const offY = Math.floor((4 - shape.length) / 2);
   for (let r = 0; r < shape.length; r++)
     for (let c = 0; c < shape[r].length; c++)
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
+}
+
+// ---- Skins ----
+
+function loadSkinId() {
+  try {
+    return localStorage.getItem(SKIN_STORAGE_KEY);
+  } catch (err) {
+    return null; // almacenamiento bloqueado (modo privado, políticas, etc.)
+  }
+}
+
+function saveSkinId(id) {
+  try {
+    localStorage.setItem(SKIN_STORAGE_KEY, id);
+  } catch (err) {
+    // sin persistencia: la skin se aplica igualmente en esta sesión
+  }
+}
+
+// Cambia la skin sin recargar: valida el id, persiste la preferencia y redibuja al momento
+// (también en pausa o game over, cuando el bucle de animación está detenido).
+function applySkin(id) {
+  const skinId = Object.prototype.hasOwnProperty.call(SKINS, id) ? id : DEFAULT_SKIN;
+  activeSkin = SKINS[skinId];
+  saveSkinId(skinId);
+  document.body.dataset.skin = skinId;
+  if (skinSelect && skinSelect.value !== skinId) skinSelect.value = skinId;
+  if (board && current) draw();
+  if (next) drawNext();
+}
+
+function initSkinSelector() {
+  if (!skinSelect) return;
+  // Opciones generadas desde SKINS: añadir una skin nueva no requiere tocar el HTML
+  skinSelect.innerHTML = '';
+  for (const [id, skin] of Object.entries(SKINS)) {
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = skin.name;
+    skinSelect.appendChild(option);
+  }
+  skinSelect.addEventListener('change', () => {
+    applySkin(skinSelect.value);
+    // Devolver el foco al documento para que las flechas controlen el juego y no el select
+    skinSelect.blur();
+  });
 }
 
 function endGame() {
@@ -275,6 +318,8 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
+  // Mientras el selector de skin tenga el foco, las teclas son para él, no para el juego
+  if (e.target === skinSelect) return;
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
@@ -301,4 +346,6 @@ document.addEventListener('keydown', e => {
 
 restartBtn.addEventListener('click', init);
 
+initSkinSelector();
+applySkin(loadSkinId());
 init();
