@@ -33,7 +33,8 @@ que te lanzó. Ya estás en la rama `BRANCH`.
    qué no se implementó y qué se necesita. Después termina sin tocar el código.
 
 3. Si `EVENT` es `edited`, la rama puede contener ya cambios de una ejecución anterior.
-   Revísalos con `git diff origin/<BASE_BRANCH>...HEAD` o `git log`, y ajústalos al
+   Revísalos con `git diff origin/<BASE_BRANCH> HEAD` (no uses la sintaxis `...`:
+   el clon es superficial y no tiene merge-base), y ajústalos al
    nuevo contenido del issue en lugar de empezar de cero.
 
 4. Implementa el cambio **mínimo y completo**:

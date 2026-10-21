@@ -116,7 +116,8 @@ jobs:
           else
             git checkout -b "$BRANCH"
           fi
-          git fetch --depth 1 origin "$BASE_BRANCH"
+          # Refspec explícito para que exista origin/<base> (Claude lo usa para comparar).
+          git fetch --depth 1 origin "${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}"
 
       - name: Run Claude Code (implementación)
         uses: anthropics/claude-code-action@v1
@@ -143,26 +144,40 @@ jobs:
           set -euo pipefail
           git add -A
 
-          if git diff --cached --quiet; then
-            echo "Claude no hizo cambios de código."
+          TITLE="$(head -n 1 .claude-output/pr-title.txt 2>/dev/null || true)"
+
+          if ! git diff --cached --quiet; then
+            # Barrera de seguridad: nunca publicar cambios en workflows/scripts/prompts.
+            if git diff --cached --name-only | grep -q '^\.github/'; then
+              echo "::error::Claude modificó archivos dentro de .github/; no se publican por seguridad."
+              git diff --cached --name-only
+              exit 1
+            fi
+
+            [ -n "$TITLE" ] || TITLE="fix: resolver issue #${ISSUE_NUMBER}"
+            git commit -m "$TITLE" -m "Closes #${ISSUE_NUMBER}"
+            git push origin "HEAD:refs/heads/${BRANCH}"
+          else
+            echo "Claude no hizo cambios de código nuevos en esta ejecución."
+          fi
+
+          # La PR se decide por el estado de la rama remota, no por si hubo commit en esta
+          # ejecución: así un re-run (p. ej. tras un fallo al crear la PR) la crea igualmente.
+          # Se usa la API compare porque el clon es superficial (fetch-depth: 1).
+          AHEAD=0
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+            AHEAD="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_BRANCH}...${BRANCH}" --jq '.ahead_by')"
+          fi
+
+          if [ "$AHEAD" -eq 0 ]; then
+            echo "La rama no tiene cambios respecto a ${BASE_BRANCH}; no se crea PR."
             if [ -s .claude-output/skip-reason.md ]; then
               bash .github/scripts/upsert-issue-comment.sh "$ISSUE_NUMBER" '<!-- claude-implement -->' .claude-output/skip-reason.md
             fi
             exit 0
           fi
 
-          # Barrera de seguridad: nunca publicar cambios en workflows/scripts/prompts.
-          if git diff --cached --name-only | grep -q '^\.github/'; then
-            echo "::error::Claude modificó archivos dentro de .github/; no se publican por seguridad."
-            git diff --cached --name-only
-            exit 1
-          fi
-
-          TITLE="$(head -n 1 .claude-output/pr-title.txt 2>/dev/null || true)"
-          [ -n "$TITLE" ] || TITLE="fix: resolver issue #${ISSUE_NUMBER}"
-
-          git commit -m "$TITLE" -m "Closes #${ISSUE_NUMBER}"
-          git push origin "HEAD:refs/heads/${BRANCH}"
+          [ -n "$TITLE" ] || TITLE="$(git log -1 --format=%s)"
 
           { cat .claude-output/pr-body.md 2>/dev/null || true; printf '\n\n---\n\nCloses #%s\n' "$ISSUE_NUMBER"; } > .claude-output/pr-full-body.md
 
