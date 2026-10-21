@@ -113,6 +113,46 @@ body {
   border-radius: 4px;
 }
 
+/* ---- Selector de skin ---- */
+.skin-select {
+  width: 100%;
+  background: var(--kbd-bg);
+  color: var(--text);
+  border: 1px solid var(--kbd-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.skin-select:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Ajustes opcionales por skin (body[data-skin] lo pone applySkin en game.js).
+   El fondo real del tablero lo pinta el canvas; aquí solo se ajusta el marco. */
+body[data-skin="neon"] #board,
+body[data-skin="neon"] #next-canvas {
+  background: #000;
+  border-color: #2a1a4a;
+  box-shadow: 0 0 24px rgba(212, 0, 255, 0.35);
+}
+
+body[data-skin="pastel"] #board,
+body[data-skin="pastel"] #next-canvas {
+  background: #f7f2ec;
+  border-color: #d9cfc4;
+}
+
+body[data-skin="pixel"] #board,
+body[data-skin="pixel"] #next-canvas {
+  background: #1b1b2f;
+  border-color: #3a3a6a;
+  border-radius: 0;
+}
+
 /* ---- Controles ---- */
 .controls ul {
   list-style: none;
