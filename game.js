@@ -4,16 +4,12 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
-const COLORS = [
-  null,
-  '#4dd0e1', // I - cyan
-  '#ffd54f', // O - yellow
-  '#ba68c8', // T - purple
-  '#81c784', // S - green
-  '#e57373', // Z - red
-  '#7986cb', // J - indigo
-  '#ffb74d', // L - orange
-];
+// Pastel palette: evenly spaced hues with a random offset on each page load
+const HUE_OFFSET = Math.random() * 360;
+const COLORS = [null];
+for (let i = 0; i < 7; i++) {
+  COLORS.push(`hsl(${(HUE_OFFSET + i * 360 / 7) % 360}, 70%, 82%)`);
+}
 
 const PIECES = [
   null,
@@ -163,7 +159,7 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
   context.fillStyle = color;
   context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
   // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
+  context.fillStyle = 'rgba(0,0,0,0.12)';
   context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
   context.globalAlpha = 1;
 }
