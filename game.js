@@ -41,6 +41,8 @@ const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+// combo: piezas consecutivas que limpian al menos una línea; maxCombo: el mayor de la partida
+let combo = 0, maxCombo = 0;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -110,6 +112,7 @@ function clearLines() {
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
+  return cleared;
 }
 
 function ghostY() {
@@ -137,7 +140,13 @@ function softDrop() {
 
 function lockPiece() {
   merge();
-  clearLines();
+  // Actualiza el combo según si esta pieza ha limpiado alguna línea
+  if (clearLines() > 0) {
+    combo++;
+    maxCombo = Math.max(maxCombo, combo);
+  } else {
+    combo = 0;
+  }
   spawn();
 }
 
@@ -224,6 +233,10 @@ function endGame() {
   overlayTitle.textContent = 'GAME OVER';
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
   overlay.classList.remove('hidden');
+  // Aviso desacoplado para otros módulos (p. ej. records.js)
+  document.dispatchEvent(new CustomEvent('tetris:gameover', {
+    detail: { score, lines, maxCombo },
+  }));
 }
 
 function togglePause() {
@@ -253,6 +266,9 @@ function loop(ts) {
     }
   }
   draw();
+  // Si lockPiece() ha terminado la partida no se reprograma el bucle
+  // (si no, endGame() se repetiría en cada caída)
+  if (gameOver) return;
   animId = requestAnimationFrame(loop);
 }
 
@@ -261,6 +277,8 @@ function init() {
   score = 0;
   lines = 0;
   level = 1;
+  combo = 0;
+  maxCombo = 0;
   paused = false;
   gameOver = false;
   dropInterval = 1000;
@@ -270,11 +288,14 @@ function init() {
   spawn();
   updateHUD();
   overlay.classList.add('hidden');
+  document.dispatchEvent(new CustomEvent('tetris:start'));
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
+  // Las teclas escritas en campos de texto (nombre del récord) no llegan al juego
+  if (e.target instanceof HTMLInputElement) return;
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
@@ -301,4 +322,6 @@ document.addEventListener('keydown', e => {
 
 restartBtn.addEventListener('click', init);
 
-init();
+// La partida no arranca sola: records.js muestra la pantalla de inicio y el
+// botón "Jugar" llama a init(). Mientras tanto el juego se considera detenido.
+gameOver = true;

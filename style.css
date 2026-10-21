@@ -159,3 +159,146 @@ kbd {
 #restart-btn:hover {
   background: #9bbdff;
 }
+
+/* ---- Tabla de records ---- */
+.overlay[data-mode="start"] #overlay-title {
+  color: #7aa2f7;
+  letter-spacing: 8px;
+}
+
+.records {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.records.hidden,
+.records-form.hidden {
+  display: none;
+}
+
+.records-stats,
+.records-best {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  color: #aaa;
+}
+
+.records-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: #1a1a25;
+  border: 1px solid #7aa2f7;
+  border-radius: 6px;
+}
+
+.records-new {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffd54f;
+}
+
+.records-form-row {
+  display: flex;
+  gap: 6px;
+}
+
+.records-form input {
+  flex: 1;
+  min-width: 0;
+  background: #0f0f17;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #e0e0e0;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  user-select: text;
+}
+
+.records-form input:focus {
+  outline: none;
+  border-color: #7aa2f7;
+}
+
+.records-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #1a1a25;
+  border: 1px solid #2a2a3a;
+  font-size: 13px;
+}
+
+.records-table th {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #555570;
+  font-weight: 600;
+  padding: 6px 4px;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.records-table td {
+  padding: 5px 4px;
+  color: #ccc;
+}
+
+.records-table td.num {
+  font-family: 'Courier New', Courier, monospace;
+  color: #7aa2f7;
+  text-align: right;
+}
+
+.records-table td.name {
+  text-align: left;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.records-table td.empty {
+  text-align: center;
+  color: #555570;
+  font-style: italic;
+  padding: 10px;
+}
+
+.records-table tr.is-new td {
+  background: rgba(255, 213, 79, 0.15);
+  color: #ffd54f;
+  font-weight: 700;
+}
+
+.btn-secondary {
+  background: #22223a;
+  color: #7aa2f7;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  border-color: #7aa2f7;
+}
+
+.btn-link {
+  align-self: center;
+  background: none;
+  border: none;
+  color: #555570;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.btn-link:hover {
+  color: #e57373;
+}
