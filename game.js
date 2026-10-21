@@ -28,6 +28,9 @@ const PIECES = [
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
 
+// Teclas que mueven la pieza (también las usa pause-menu.js para bloquearlas).
+const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyX', 'Space']);
+
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
@@ -41,6 +44,47 @@ const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+
+// Tras reanudar/reiniciar se ignoran los keydown con e.repeat hasta que llegue
+// una pulsación nueva, para que una tecla mantenida no mueva la pieza.
+let ignoreRepeat = false;
+
+// ---- Nivel inicial (persistido en localStorage) ----
+const START_LEVEL_KEY = 'tetris.startLevel';
+const MIN_START_LEVEL = 1;
+const MAX_START_LEVEL = 10;
+
+function clampStartLevel(n) {
+  if (!Number.isFinite(n)) return MIN_START_LEVEL;
+  return Math.min(MAX_START_LEVEL, Math.max(MIN_START_LEVEL, Math.trunc(n)));
+}
+
+function loadStartLevel() {
+  try {
+    return clampStartLevel(parseInt(localStorage.getItem(START_LEVEL_KEY), 10));
+  } catch (_) {
+    return MIN_START_LEVEL;
+  }
+}
+
+// Cambia el nivel con el que empezará la PRÓXIMA partida (se aplica en init()).
+function setStartLevel(n) {
+  startLevel = clampStartLevel(n);
+  try {
+    localStorage.setItem(START_LEVEL_KEY, String(startLevel));
+  } catch (_) {
+    // Sin almacenamiento disponible: el valor vale solo para esta sesión.
+  }
+}
+
+let startLevel = loadStartLevel();
+// Copia de startLevel tomada en init(): cambiar el selector a mitad de partida
+// no debe alterar el nivel de la partida en curso.
+let startLevelOfGame = startLevel;
+
+function computeDropInterval(lvl) {
+  return Math.max(100, 1000 - (lvl - 1) * 90);
+}
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -106,8 +150,8 @@ function clearLines() {
   if (cleared) {
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
-    level = Math.floor(lines / 10) + 1;
-    dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    level = startLevelOfGame + Math.floor(lines / 10);
+    dropInterval = computeDropInterval(level);
     updateHUD();
   }
 }
@@ -226,17 +270,19 @@ function endGame() {
   overlay.classList.remove('hidden');
 }
 
-function togglePause() {
-  if (gameOver) return;
-  paused = !paused;
+// Pausa/reanuda solo el bucle del juego. La interfaz del menú de pausa vive en
+// pause-menu.js, que llama a esta función.
+function setPaused(value) {
+  if (gameOver || paused === value) return;
+  paused = value;
+  cancelAnimationFrame(animId);
   if (!paused) {
+    // Reanudar sin "saltos": al reiniciar lastTime, el tiempo en pausa no cuenta
+    // para la caída. dropAccum se conserva a propósito: ponerlo a 0 permitiría
+    // congelar la pieza pausando/reanudando antes de cada caída.
     lastTime = performance.now();
-    loop(lastTime);
-  } else {
-    cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
+    ignoreRepeat = true;
+    animId = requestAnimationFrame(loop);
   }
 }
 
@@ -250,6 +296,8 @@ function loop(ts) {
       current.y++;
     } else {
       lockPiece();
+      // Si el spawn provocó game over, no reprogramar el bucle (endGame ya lo canceló).
+      if (gameOver) return;
     }
   }
   draw();
@@ -260,11 +308,13 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  startLevelOfGame = startLevel;
+  level = startLevelOfGame;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  dropInterval = computeDropInterval(level);
   dropAccum = 0;
+  ignoreRepeat = true;
   lastTime = performance.now();
   next = randomPiece();
   spawn();
@@ -275,8 +325,17 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
+  // P/Escape los gestiona pause-menu.js. Con el menú abierto (paused) se
+  // ignoran todas las teclas de juego.
   if (paused || gameOver) return;
+  if (ignoreRepeat && GAME_KEYS.has(e.code)) {
+    if (e.repeat) {
+      e.preventDefault();
+      return;
+    }
+    // Solo una pulsación nueva de una tecla de juego desactiva el filtro.
+    ignoreRepeat = false;
+  }
   switch (e.code) {
     case 'ArrowLeft':
       if (!collide(current.shape, current.x - 1, current.y)) current.x--;
