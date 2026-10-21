@@ -38,6 +38,8 @@ const skinSelect = document.getElementById('skin-select');
 
 let activeSkin = SKINS[DEFAULT_SKIN];
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+// combo: piezas consecutivas que limpian al menos una línea; maxCombo: el mayor de la partida
+let combo = 0, maxCombo = 0;
 
 // Tras reanudar/reiniciar se ignoran los keydown con e.repeat hasta que llegue
 // una pulsación nueva, para que una tecla mantenida no mueva la pieza.
@@ -148,6 +150,7 @@ function clearLines() {
     dropInterval = computeDropInterval(level);
     updateHUD();
   }
+  return cleared;
 }
 
 function ghostY() {
@@ -175,7 +178,13 @@ function softDrop() {
 
 function lockPiece() {
   merge();
-  clearLines();
+  // Actualiza el combo según si esta pieza ha limpiado alguna línea
+  if (clearLines() > 0) {
+    combo++;
+    maxCombo = Math.max(maxCombo, combo);
+  } else {
+    combo = 0;
+  }
   spawn();
 }
 
@@ -233,6 +242,8 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   fillBackground(ctx, canvas);
   drawGrid();
+  // Antes de la primera partida (pantalla de inicio) solo hay fondo y rejilla
+  if (!board || !current) return;
 
   // board
   for (let r = 0; r < ROWS; r++)
@@ -256,6 +267,7 @@ function drawNext() {
   const NB = 30;
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
   fillBackground(nextCtx, nextCanvas);
+  if (!next) return;
   const shape = next.shape;
   const offX = Math.floor((4 - shape[0].length) / 2);
   const offY = Math.floor((4 - shape.length) / 2);
@@ -290,8 +302,8 @@ function applySkin(id) {
   saveSkinId(skinId);
   document.body.dataset.skin = skinId;
   if (skinSelect && skinSelect.value !== skinId) skinSelect.value = skinId;
-  if (board && current) draw();
-  if (next) drawNext();
+  draw();
+  drawNext();
 }
 
 function initSkinSelector() {
@@ -317,6 +329,10 @@ function endGame() {
   overlayTitle.textContent = 'GAME OVER';
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
   overlay.classList.remove('hidden');
+  // Aviso desacoplado para otros módulos (p. ej. records.js)
+  document.dispatchEvent(new CustomEvent('tetris:gameover', {
+    detail: { score, lines, maxCombo },
+  }));
 }
 
 // Pausa/reanuda solo el bucle del juego. La interfaz del menú de pausa vive en
@@ -345,11 +361,12 @@ function loop(ts) {
       current.y++;
     } else {
       lockPiece();
-      // Si el spawn provocó game over, no reprogramar el bucle (endGame ya lo canceló).
-      if (gameOver) return;
     }
   }
   draw();
+  // Si lockPiece() ha terminado la partida no se reprograma el bucle
+  // (si no, endGame() se repetiría en cada caída)
+  if (gameOver) return;
   animId = requestAnimationFrame(loop);
 }
 
@@ -359,6 +376,8 @@ function init() {
   lines = 0;
   startLevelOfGame = startLevel;
   level = startLevelOfGame;
+  combo = 0;
+  maxCombo = 0;
   paused = false;
   gameOver = false;
   dropInterval = computeDropInterval(level);
@@ -369,6 +388,7 @@ function init() {
   spawn();
   updateHUD();
   overlay.classList.add('hidden');
+  document.dispatchEvent(new CustomEvent('tetris:start'));
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
@@ -376,6 +396,8 @@ function init() {
 document.addEventListener('keydown', e => {
   // Mientras el selector de skin tenga el foco, las teclas son para él, no para el juego
   if (e.target === skinSelect) return;
+  // Las teclas escritas en campos de texto (nombre del récord) no llegan al juego
+  if (e.target instanceof HTMLInputElement) return;
   // P/Escape los gestiona pause-menu.js. Con el menú abierto (paused) se
   // ignoran todas las teclas de juego.
   if (paused || gameOver) return;
@@ -433,4 +455,7 @@ applyTheme(savedTheme === 'light' ? 'light' : 'dark');
 
 initSkinSelector();
 applySkin(loadSkinId());
-init();
+
+// La partida no arranca sola: records.js muestra la pantalla de inicio y el
+// botón "Jugar" llama a init(). Mientras tanto el juego se considera detenido.
+gameOver = true;

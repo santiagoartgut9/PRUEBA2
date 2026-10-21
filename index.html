@@ -58,6 +58,28 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
+
+        <!-- Tabla de records (gestionada por records.js) -->
+        <div id="records" class="records hidden">
+          <p id="records-stats" class="records-stats"></p>
+          <form id="records-form" class="records-form hidden" autocomplete="off">
+            <label for="records-name" id="records-form-label" class="records-new">¡Nuevo récord!</label>
+            <div class="records-form-row">
+              <input id="records-name" type="text" maxlength="12" placeholder="Tu nombre" spellcheck="false" />
+              <button type="submit" class="btn-secondary">Guardar</button>
+            </div>
+          </form>
+          <span class="label">TOP 5</span>
+          <table class="records-table">
+            <thead>
+              <tr><th>#</th><th>Nombre</th><th>Puntos</th><th>Líneas</th><th>Combo</th></tr>
+            </thead>
+            <tbody id="records-body"></tbody>
+          </table>
+          <p id="records-best" class="records-best"></p>
+          <button type="button" id="records-reset" class="btn-link">Resetear records</button>
+        </div>
+
         <button id="restart-btn">Reiniciar</button>
       </div>
     </div>
@@ -88,5 +110,6 @@
   <script src="skins.js"></script>
   <script src="game.js"></script>
   <script src="pause-menu.js"></script>
+  <script src="records.js"></script>
 </body>
 </html>
