@@ -212,3 +212,28 @@ kbd {
 #theme-btn:hover {
   border-color: var(--accent);
 }
+
+/* ---- Selector de skin ---- */
+#skin-select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#skin-select:hover,
+#skin-select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* Neon: fondo negro en los canvas sea cual sea el tema claro/oscuro */
+[data-skin="neon"] #board,
+[data-skin="neon"] #next-canvas {
+  background: #000;
+  border-color: #1f1f3a;
+}
