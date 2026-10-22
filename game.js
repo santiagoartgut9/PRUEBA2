@@ -510,6 +510,7 @@ function draw() {
 function drawNext() {
   const NB = 30;
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+  if (!next) return; // pantalla de inicio: aún no hay pieza siguiente
   const shape = next.shape;
   const offX = Math.floor((4 - shape[0].length) / 2);
   const offY = Math.floor((4 - shape.length) / 2);
@@ -666,6 +667,8 @@ const skinSelect = document.getElementById('skin-select');
 const GAME_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyX', 'KeyP', 'Escape'];
 
 document.addEventListener('keydown', e => {
+  // escribiendo el nombre del récord las teclas son del campo de texto (P y Esc incluidas)
+  if (e.target === recordName) return;
   // si el selector de skin tiene el foco, las teclas del juego no deben cambiar su valor
   if (e.target === skinSelect && GAME_KEYS.includes(e.code)) {
     e.preventDefault();
